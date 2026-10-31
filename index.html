@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AstroGuard // NASA Mission Control Specification Suite</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Orbitron, Inter & Space Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Orbitron:wght@500;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- Three.js CDN for 3D Background Starfield -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #000000; color: #f8fafc; }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .font-mono-term { font-family: 'Space Mono', monospace; }
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+        /* Custom scrollbar for terminal logs */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-black text-slate-100 min-h-screen p-4 md:p-6 relative selection:bg-cyan-500 selection:text-black">
+
+    <!-- 🌌 1. Layered Glassmorphic Canvas & AMOLED Background -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- 🚨 3. Morphing Top Capsule (Dynamic Island Alert Hub) -->
+    <div id="dynamic-island" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-black/80 border border-cyan-500/40 backdrop-blur-2xl px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 transition-all duration-300 ease-in-out cursor-pointer max-w-md">
+        <span id="island-icon" class="w-3 h-3 rounded-full bg-cyan-400 animate-ping shrink-0"></span>
+        <span id="island-text" class="text-xs font-mono-term text-cyan-300 truncate">SYSTEM NOMINAL // TELEMETRY SECURE</span>
+    </div>
+
+    <!-- Collapsible Mission Sidebar Toggle Button -->
+    <button onclick="toggleSidebar()" class="fixed top-4 left-4 z-40 bg-white/5 hover:bg-white/10 border border-white/10 p-2.5 rounded-xl backdrop-blur-md text-cyan-400 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    </button>
+
+    <!-- Collapsible Mission Sidebar -->
+    <aside id="mission-sidebar" class="fixed top-0 left-0 h-full w-72 bg-black/95 border-r border-white/10 backdrop-blur-2xl z-40 transform -translate-x-full transition-transform duration-300 p-6 flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center mb-6 pt-12">
+                <h3 class="font-orbitron text-sm text-cyan-400 tracking-wider">UTILITY MODULES</h3>
+                <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white text-xs">✕ CLOSE</button>
+            </div>
+            <div class="space-y-4 text-xs font-mono-term">
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                    <span class="text-slate-400 block mb-1">Astronomical Converter</span>
+                    <span class="text-cyan-300">1 AU = 149.6M KM (Active)</span>
+                </div>
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                    <span class="text-slate-400 block mb-1">Orbital Coordinates</span>
+                    <span class="text-emerald-400">RA 05h 35m / DEC -05° 23'</span>
+                </div>
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                    <span class="text-slate-400 block mb-1">Radiation Shield Status</span>
+                    <span class="text-amber-400">Sector 4 Integrity: 94.2%</span>
+                </div>
+            </div>
+        </div>
+        <div class="text-[10px] text-slate-500 font-mono-term">
+            NASA Space Apps // OS v4.2.1-PROD
+        </div>
+    </aside>
+
+    <!-- Top Navigation / Header -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-4 border-b border-white/10 gap-4 relative z-10 mt-6 pl-12 md:pl-16">
+        <div>
+            <h1 class="font-orbitron text-2xl md:text-3xl font-bold tracking-wider text-cyan-400">ASTRO-GUARD // COMMAND CENTER</h1>
+            <p class="text-xs font-mono-term text-slate-400">Commander: Ishaan Kumar | Roll: 26-CSE-CS-013 | <span class="text-amber-400">HUMAN AUTHORITY ACTIVE</span></p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="px-3 py-1.5 bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-mono-term rounded-full flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> PILOT IN CONTROL
+            </span>
+            <div class="font-mono-term text-xs bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-cyan-300">
+                MET: <span id="mission-clock">144:12:05</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10 pb-16">
+
+        <!-- Column 1: Physiological Telemetry & Habitat Environment -->
+        <div class="space-y-6">
+            <!-- Vitals Card -->
+            <div class="backdrop-blur-2xl bg-black/60 border border-white/10 rounded-2xl p-5 shadow-2xl">
+                <h2 class="font-orbitron text-xs text-cyan-300 mb-4 tracking-wider flex items-center justify-between">
+                    <span>PHYSIOLOGICAL TELEMETRY</span>
+                    <span class="text-[10px] font-mono-term text-slate-500">REFRESH: 1s</span>
+                </h2>
+                <div class="space-y-4 font-mono-term">
+                    <div class="flex justify-between items-center bg-white/5 p-3.5 rounded-xl border border-white/5">
+                        <div>
+                            <span class="text-slate-400 text-[10px] block">Heart Rate</span>
+                            <span class="font-orbitron text-xl font-bold text-emerald-400" id="hr-display">72</span> <span class="text-xs text-slate-500">BPM</span>
+                        </div>
+                        <span class="text-[10px] px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded-md">Optimal</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-white/5 p-3.5 rounded-xl border border-white/5">
+                        <div>
+                            <span class="text-slate-400 text-[10px] block">Oxygen Saturation (SpO2)</span>
+                            <span class="font-orbitron text-xl font-bold text-cyan-400">98%</span>
+                        </div>
+                        <span class="text-[10px] px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded-md">Normal</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-white/5 p-3.5 rounded-xl border border-white/5">
+                        <div>
+                            <span class="text-slate-400 text-[10px] block">Radiation Exposure</span>
+                            <span class="font-orbitron text-xl font-bold text-amber-400" id="rad-display">0.45</span> <span class="text-xs text-slate-500">mSv/h</span>
+                        </div>
+                        <span class="text-[10px] px-2 py-1 bg-amber-500/20 text-amber-300 rounded-md">Elevated</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Environmental Telemetry -->
+            <div class="backdrop-blur-2xl bg-black/60 border border-white/10 rounded-2xl p-5 shadow-2xl">
+                <h2 class="font-orbitron text-xs text-cyan-300 mb-4 tracking-wider">HABITAT ENVIRONMENT</h2>
+                <div class="grid grid-cols-2 gap-3 font-mono-term">
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <span class="text-[10px] text-slate-400 block">Cabin Pressure</span>
+                        <span class="font-orbitron text-sm font-bold text-slate-100">101.3 <span class="text-[10px] text-slate-500">kPa</span></span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <span class="text-[10px] text-slate-400 block">CO2 Level</span>
+                        <span class="font-orbitron text-sm font-bold text-emerald-400">0.04%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Crew Self-Assessment & Human Decision Framework -->
+        <div class="backdrop-blur-2xl bg-black/60 border border-white/10 rounded-2xl p-5 shadow-2xl flex flex-col justify-between">
+            <div>
+                <h2 class="font-orbitron text-xs text-cyan-300 mb-4 tracking-wider">CREW SELF-ASSESSMENT LOG</h2>
+                <form id="health-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-mono-term text-slate-300 mb-1">Sleep Quality (Last 24 Hours)</label>
+                        <select id="sleep-input" class="w-full bg-zinc-950 border border-white/10 rounded-xl p-2.5 text-xs font-mono-term text-slate-200 focus:outline-none focus:border-cyan-500">
+                            <option value="8">8 Hours (Deep & Restful)</option>
+                            <option value="6">6 Hours (Moderate)</option>
+                            <option value="4">4 Hours or Less (Fatigue Risk)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-mono-term text-slate-300 mb-1">Stress / Isolation Index (1 to 10)</label>
+                        <input type="range" id="stress-input" min="1" max="10" value="3" class="w-full accent-cyan-400 cursor-pointer">
+                        <div class="flex justify-between text-[10px] font-mono-term text-slate-400 mt-1">
+                            <span>Calm (1)</span>
+                            <span id="stress-val" class="text-cyan-400 font-bold">3</span>
+                            <span>High Stress (10)</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-orbitron font-bold text-xs rounded-xl tracking-wider transition duration-200 shadow-lg shadow-cyan-500/20 cursor-pointer">
+                        ANALYZE TELEMETRY PATTERNS
+                    </button>
+                </form>
+            </div>
+
+            <!-- AI Catalyst Box (Human-in-the-loop) -->
+            <div id="ai-catalyst-box" class="mt-4 p-3 bg-zinc-950/90 border border-cyan-500/30 rounded-xl text-xs font-mono-term text-slate-300 hidden">
+                <span class="text-cyan-400 font-bold block mb-1">🤖 AI Catalyst Analysis (Data Only):</span>
+                <p id="catalyst-text" class="mb-3 text-slate-400">Analyzing patterns... Awaiting human execution.</p>
+                
+                <div class="border-t border-white/10 pt-2">
+                    <span class="text-amber-400 font-bold block mb-1">👤 Human Astronaut Action:</span>
+                    <div class="flex gap-2">
+                        <select id="human-action-select" class="w-full bg-black border border-white/20 rounded-lg p-1.5 text-xs text-slate-200">
+                            <option value="rest">Execute 20-min Rest Protocol</option>
+                            <option value="exercise">Initiate ARED Exercise</option>
+                            <option value="ignore">Override & Log as Nominal</option>
+                        </select>
+                        <button onclick="executeHumanDecision()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg whitespace-nowrap cursor-pointer">
+                            AUTHORIZE
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 3: Isolated Notification Stream & Manual Override -->
+        <div class="space-y-6 flex flex-col justify-between">
+            <!-- Isolated Notification Stream -->
+            <div class="backdrop-blur-2xl bg-black/60 border border-white/10 rounded-2xl p-5 shadow-2xl flex flex-col h-[280px]">
+                <h2 class="font-orbitron text-xs text-cyan-300 mb-3 tracking-wider flex justify-between items-center">
+                    <span>NOTIFICATION STREAM</span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                </h2>
+                <div id="log-stream" class="space-y-2 overflow-y-auto pr-1 text-[11px] font-mono-term flex-grow">
+                    <div class="bg-white/5 p-2.5 rounded-lg border border-white/5 text-slate-400">
+                        <span class="text-cyan-400">[144:12:00]</span> System initialized on AMOLED display matrix.
+                    </div>
+                    <div class="bg-white/5 p-2.5 rounded-lg border border-white/5 text-slate-400">
+                        <span class="text-cyan-400">[144:12:02]</span> Solar radiation sensor nominal.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Emergency SOS Panel -->
+            <div class="backdrop-blur-2xl bg-rose-950/20 border border-rose-500/30 rounded-2xl p-5 shadow-2xl">
+                <h2 class="font-orbitron text-xs text-rose-400 mb-2 tracking-wider">MANUAL EMERGENCY OVERRIDE</h2>
+                <p class="text-xs font-mono-term text-slate-400 mb-4">Direct telemetry broadcast to Earth Mission Control.</p>
+                <button onclick="triggerSOS()" class="w-full py-3 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/60 text-rose-300 font-orbitron text-xs rounded-xl tracking-wider transition duration-200 cursor-pointer">
+                    INITIATE MANUAL SOS
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 🚨 3. Persistent Live Activity Badges (Footer Bar) -->
+    <footer class="fixed bottom-0 left-0 w-full bg-black/90 border-t border-white/10 backdrop-blur-2xl px-6 py-2.5 z-40 flex flex-wrap justify-between items-center text-[11px] font-mono-term text-slate-400">
+        <div class="flex items-center gap-6">
+            <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                Active Spacewalk Timer: <strong class="text-slate-200">02:45:10</strong>
+            </span>
+            <span class="hidden md:inline">Orbital Velocity: <strong class="text-cyan-300">27,580 KM/H</strong></span>
+        </div>
+        <div>
+            <span>Data Sync: <strong class="text-emerald-400">SECURE // 0ms Latency</strong></span>
+        </div>
+    </footer>
+
+    <!-- JavaScript Execution Suite -->
+    <script>
+        // --- SIDEBAR TOGGLE ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('mission-sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // --- THREE.JS LAYERED BACKGROUND & STARFIELD ---
+        const canvas = document.getElementById('bg-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 1800;
+        const posArray = new Float32Array(particlesCount * 3);
+        for(let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 12;
+        }
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.012,
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.75
+        });
+
+        const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particlesMesh);
+        camera.position.z = 2;
+
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX / window.innerWidth) - 0.5;
+            mouseY = (event.clientY / window.innerHeight) - 0.5;
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            particlesMesh.rotation.y += 0.0006 + (mouseX * 0.02);
+            particlesMesh.rotation.x += 0.0003 + (mouseY * 0.02);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- DYNAMIC ISLAND NOTIFICATION CAPSULE ---
+        function showDynamicIsland(message, type = 'info') {
+            const island = document.getElementById('dynamic-island');
+            const islandText = document.getElementById('island-text');
+            const islandIcon = document.getElementById('island-icon');
+
+            islandText.textContent = message;
+
+            if (type === 'alert') {
+                island.className = "fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-rose-950/90 border border-rose-500/60 backdrop-blur-2xl px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 transition-all duration-300 ease-in-out cursor-pointer";
+                islandIcon.className = "w-3 h-3 rounded-full bg-rose-500 animate-ping shrink-0";
+                islandText.className = "text-xs font-mono-term text-rose-300";
+            } else {
+                island.className = "fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-black/90 border border-cyan-500/40 backdrop-blur-2xl px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 transition-all duration-300 ease-in-out cursor-pointer";
+                islandIcon.className = "w-3 h-3 rounded-full bg-cyan-400 animate-ping shrink-0";
+                islandText.className = "text-xs font-mono-term text-cyan-300";
+            }
+
+            setTimeout(() => {
+                islandText.textContent = "SYSTEM NOMINAL // TELEMETRY SECURE";
+                island.className = "fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-black/80 border border-cyan-500/40 backdrop-blur-2xl px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 transition-all duration-300 ease-in-out cursor-pointer";
+                islandIcon.className = "w-3 h-3 rounded-full bg-cyan-400 animate-ping shrink-0";
+                islandText.className = "text-xs font-mono-term text-cyan-300";
+            }, 5000);
+        }
+
+        // --- NOTIFICATION LOG STREAM ---
+        function pushLog(text, colorClass = "text-slate-400") {
+            const stream = document.getElementById('log-stream');
+            const timeStr = new Date().toLocaleTimeString();
+            const logItem = document.createElement('div');
+            logItem.className = `bg-white/5 p-2.5 rounded-lg border border-white/5 ${colorClass}`;
+            logItem.innerHTML = `<span class="text-cyan-400">[${timeStr}]</span> ${text}`;
+            stream.prepend(logItem);
+        }
+
+        // --- INTERACTIVITY & LIVE SIMULATION ---
+        const stressInput = document.getElementById('stress-input');
+        const stressVal = document.getElementById('stress-val');
+        stressInput.addEventListener('input', (e) => { stressVal.textContent = e.target.value; });
+
+        setInterval(() => {
+            const hrElem = document.getElementById('hr-display');
+            const radElem = document.getElementById('rad-display');
+            
+            let currentHr = parseInt(hrElem.textContent);
+            let newHr = currentHr + (Math.random() > 0.5 ? 1 : -1);
+            if(newHr >= 68 && newHr <= 78) hrElem.textContent = newHr;
+
+            let currentRad = parseFloat(radElem.textContent);
+            let newRad = (currentRad + (Math.random() * 0.02 - 0.01)).toFixed(2);
+            radElem.textContent = newRad;
+        }, 3000);
+
+        document.getElementById('health-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const catalystBox = document.getElementById('ai-catalyst-box');
+            const catalystText = document.getElementById('catalyst-text');
+
+            catalystBox.classList.remove('hidden');
+            catalystText.textContent = "Catalyst Report: Fatigue markers flagged. Awaiting human pilot decision authorization.";
+            
+            showDynamicIsland("🤖 AI Catalyst: Telemetry Insights Ready", "info");
+            pushLog("AI Catalyst generated diagnostic recommendation options.", "text-cyan-300");
+        });
+
+        function executeHumanDecision() {
+            const selectedAction = document.getElementById('human-action-select').value;
+            showDynamicIsland(`✓ Authorized: ${selectedAction.toUpperCase()}`, "info");
+            pushLog(`Human Astronaut authorized action: ${selectedAction.toUpperCase()}`, "text-emerald-400");
+        }
+
+        function triggerSOS() {
+            showDynamicIsland("⚠️ EMERGENCY SOS BROADCASTED TO EARTH!", "alert");
+            pushLog("CRITICAL: Manual SOS broadcast triggered by Commander Ishaan.", "text-rose-400");
+        }
+    </script>
+</body>
+</html>
